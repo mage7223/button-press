@@ -1,0 +1,65 @@
+<h2 mat-dialog-title>Edit site {{ siteIndex + 1 }}</h2>
+
+<mat-dialog-content>
+  @if (image) {
+    <div
+      class="preview"
+      [style.width.px]="previewSizePx"
+      [style.height.px]="previewSizePx"
+      (pointerdown)="onPointerDown($event)"
+      (pointermove)="onPointerMove($event)"
+      (pointerup)="onPointerUp($event)"
+      (pointercancel)="onPointerUp($event)"
+    >
+      <img
+        [src]="image.objectUrl"
+        [alt]="image.fileName"
+        [style.width.px]="displayWidth()"
+        [style.height.px]="displayHeight()"
+        [style.left.px]="imageLeft()"
+        [style.top.px]="imageTop()"
+        draggable="false"
+      />
+      <div class="live-area-guide" [style.width.px]="liveAreaSizePx" [style.height.px]="liveAreaSizePx"></div>
+    </div>
+    <p class="hint">Drag the image to reposition it. Dashed circle is the visible live area.</p>
+
+    <div class="controls">
+      @if (lockAspect()) {
+        <label class="slider-row">
+          <span>Zoom</span>
+          <mat-slider [min]="scaleMin" [max]="scaleMax" [step]="0.05" discrete>
+            <input matSliderThumb [ngModel]="scaleX()" (ngModelChange)="onZoomChange($event)" />
+          </mat-slider>
+        </label>
+      } @else {
+        <label class="slider-row">
+          <span>Width</span>
+          <mat-slider [min]="scaleMin" [max]="scaleMax" [step]="0.05" discrete>
+            <input matSliderThumb [ngModel]="scaleX()" (ngModelChange)="onWidthScaleChange($event)" />
+          </mat-slider>
+        </label>
+        <label class="slider-row">
+          <span>Height</span>
+          <mat-slider [min]="scaleMin" [max]="scaleMax" [step]="0.05" discrete>
+            <input matSliderThumb [ngModel]="scaleY()" (ngModelChange)="onHeightScaleChange($event)" />
+          </mat-slider>
+        </label>
+      }
+
+      <mat-slide-toggle [checked]="!lockAspect()" (change)="onLockAspectChange(!$event.checked)">
+        Stretch independently
+      </mat-slide-toggle>
+    </div>
+  } @else {
+    <p>This site no longer has an image assigned.</p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" color="warn" (click)="removeFromSite()">Remove from this site</button>
+  <button mat-button type="button" (click)="reset()">Reset</button>
+  <span class="spacer"></span>
+  <button mat-button type="button" (click)="cancel()">Cancel</button>
+  <button mat-flat-button type="button" color="primary" [disabled]="!image" (click)="save()">Done</button>
+</mat-dialog-actions>

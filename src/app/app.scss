@@ -2,7 +2,37 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  max-width: 60rem;
+  max-width: 90rem;
   margin: 0 auto;
   padding: 1.5rem;
+}
+
+.workspace {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.controls-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex: 0 0 22rem;
+  min-width: 0;
+}
+
+.preview-column {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    flex-direction: column;
+  }
+
+  .controls-column {
+    flex: 1 1 auto;
+    width: 100%;
+  }
 }

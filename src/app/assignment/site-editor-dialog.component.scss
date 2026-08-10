@@ -1,0 +1,82 @@
+.preview {
+  position: relative;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--mat-sys-surface-variant);
+  touch-action: none;
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  img {
+    position: absolute;
+    max-width: none;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .live-area-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 2px dashed rgba(255, 255, 255, 0.85);
+    pointer-events: none;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  }
+}
+
+.hint {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface-variant);
+  margin: 0.5rem 0 1rem;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  span {
+    width: 3.5rem;
+    flex-shrink: 0;
+  }
+
+  mat-slider {
+    flex: 1;
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+// Our content is short and never needs to scroll on its own — let the dialog size to
+// fit it instead of Material's default max-height/overflow-auto occasionally clipping
+// a few px and forcing a spurious scrollbar.
+mat-dialog-content {
+  max-height: none;
+  overflow: visible;
+}
+
+mat-dialog-actions {
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+
+  button {
+    white-space: nowrap;
+    padding: 0 0.5rem;
+    min-width: 0;
+  }
+}

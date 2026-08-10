@@ -1,15 +1,83 @@
 # button-press — Product & Technical Spec
 
-Status: **Draft v0.2** — product design (§1-§12) not yet implemented;
-infrastructure and deployment pipeline (§13-§15) built and verified live.
+Status: **Draft v0.3** — core layout generation, image upload/assignment,
+and per-site image editing are built and browser-verified (§7 steps 1-6);
+multi-sheet support, the coverage-gap warning, PDF export (§8.6), and
+IndexedDB persistence (§9) are not yet implemented; infrastructure and
+deployment pipeline (§13-§15) built and verified live.
 
-## 0. Current Status (as of 2026-08-09)
+## 0. Current Status (as of 2026-08-10)
 
-**Application code:** scaffold only. The Angular workspace (§13) builds,
-lints, and tests clean, but the UI is still the placeholder screen from
-scaffolding (`src/app/app.html`) — none of the actual product functionality
-in §7-§10 (button/paper size selection, layout generation, image upload and
-per-site editing, preview, PDF export) has been built yet.
+**Application code: core layout + image assignment + per-site editing
+built; multi-sheet, PDF export, and persistence not yet started.**
+
+Built and verified in a real browser (headless Chrome driven via CDP,
+including pixel-level assertions, not just component tests):
+
+- **Button/paper selection & layout (§8.1, §8.2, §10).** Angular Material
+  pickers for button size and paper size, live-adjustable site padding /
+  sheet margin, live-recomputing grid packing rendered on an HTML canvas
+  (cut-line + live-area guide circles per site), and a clear error state
+  when the chosen button can't fit the chosen paper at all.
+- **Image upload (§8.3).** File picker and true drag-and-drop (both
+  exercised via synthetic browser events, not just clicks), JPEG/PNG/WebP
+  validation with a rejection snackbar for unsupported files, thumbnail
+  grid with per-image removal.
+- **Image assignment (§7 step 5, §8.3).** Click a thumbnail to "hold" it
+  for placement, then either **Apply to all** (overwrites every site,
+  including ones already assigned) or **Apply to remainder** (fills only
+  sites that don't already have an image, leaving reserved ones
+  untouched) — or click an individual *empty* site directly to assign the
+  held image just there. Clicking a *filled* site always opens the editor
+  instead (see next bullet), regardless of whether an image is held —
+  dragging the held thumbnail onto a filled site is what overwrites it,
+  no need to deselect first.
+- **Per-site image editing (§7 step 6, §8.4).** Clicking an
+  already-assigned site — with or without an image currently held for
+  placement — opens a modal dialog isolated to that site: drag-to-pan
+  (live during the drag), a zoom slider and
+  independent X/Y stretch sliders sharing one range (roughly 0.3×-4×, no
+  floor at 1× — zooming out can shrink the image to fit inside the live
+  area), all updating the preview continuously as a slider is moved by
+  mouse or keyboard, not just on release. Saving prompts the user to
+  apply the same position/size to any other sites using that same image —
+  confirming propagates it everywhere, declining leaves the others
+  untouched. "Remove from this site" is also built. The dialog fits its
+  content with no internal scrollbar, and its action buttons stay on one
+  row (verified: a slider-drag sequence was driven with real mouse events
+  and the preview was sampled mid-drag to confirm continuous, not
+  end-of-drag-only, updates).
+- **Drag-and-drop of a thumbnail directly onto a site (§7 step 5,
+  §8.3).** A thumbnail can now be dragged straight onto a site to assign
+  it there (with a live highlight on the site under the pointer while
+  dragging), in addition to the click-to-hold/click-to-place fallback.
+- **Two-column screen layout, responsive (§8.7).** Left column
+  (selectors, controls, dropzone, image list) and right column (sheet
+  preview), stacking to one column below 900px viewport width — checked
+  at 1400px, 901px, 899px, and 390px (phone) to confirm the breakpoint
+  lands exactly where specified and nothing overflows horizontally at
+  phone width.
+
+Not yet built:
+
+- **Multi-sheet support (§8.2, §8.3).** The app currently has a single
+  implicit sheet; explicit sheet add/remove and the "more unassigned
+  images than empty sites" prompt don't exist yet.
+- **Coverage-gap warning (§8.4).** The editor allows a transform that
+  leaves the cut line uncovered but doesn't flag it visually yet.
+- **Print-resolution/PPI warning (§8.4, should-have).**
+- **Full-sheet/single-site preview polish beyond the working canvas
+  (§8.5)** — e.g. a dedicated single-site full-size preview, sheet
+  switcher (blocked on multi-sheet).
+- **PDF export (§8.6).** Nothing yet.
+- **IndexedDB persistence (§9).** Nothing yet — a page refresh currently
+  loses all state (layout config, uploaded images, assignments).
+
+**Next likely step:** no single obvious next item — remaining v1 work is
+multi-sheet support, the coverage-gap warning, IndexedDB persistence, and
+PDF export. Persistence is probably the highest-value next increment,
+since there's now enough in-progress state (uploads, assignments,
+per-site edits) that losing it on refresh is a real cost.
 
 **CI/CD & hosting: built and verified end-to-end.**
 - `main` → production is live and confirmed working: the `Deploy
@@ -135,24 +203,42 @@ orientation-agnostic, just swap W/H).
    the layout recomputing live. The project starts with one sheet; more
    sheets can be added explicitly (§8.2).
 4. **Upload image(s)** — drag/drop or file picker, multiple files at once.
-5. **Assign images to sites**:
-   - Assign one uploaded image to "all sites" as a default fill (applies
-     across every sheet currently in the project), and/or
-   - drag/assign specific images onto specific sites on any sheet,
-     overriding the default, and/or
+5. **Assign images to sites**: select an uploaded image, then either —
+   - **Apply to all** — assigns it to every site (across every sheet
+     currently in the project), overwriting any existing per-site
+     assignment, and/or
+   - **Apply to remainder** — assigns it only to sites that don't already
+     have an image, leaving existing per-site assignments untouched (the
+     way to bulk-fill "everything else" after reserving a few sites), and/or
+   - assign it to one specific site directly — **dragging its thumbnail
+     onto the site** works for any site, empty or already-filled
+     (overwriting whatever was there); clicking the thumbnail to hold it
+     and then clicking a site only works for an *empty* site, since
+     clicking an already-filled site opens the per-site editor instead
+     (step 6) — overriding any default fill either way, and/or
    - leave any site unassigned (empty).
    - If more images are uploaded than there are empty sites across the
      current sheet(s), the app surfaces a suggestion to add another sheet;
      the user decides whether to accept it.
-6. **Edit each site's image** in a focused editor view showing the
-   concentric circle guide (live area + cut line) overlaid on the image:
+6. **Edit a site's image** by clicking the image within an already-assigned
+   site — this always opens the editor, whether or not another image is
+   currently held for placement, so there's no need to deselect first — a
+   **modal dialog** showing a larger, isolated view of just that site with
+   the concentric circle guide (live area + cut line) overlaid on the image:
    - drag to pan/reposition,
-   - scale uniformly (zoom in/out to crop, or zoom out with an
-     auto-fill-to-cut-line floor so the wrap area is never left blank),
-   - stretch independently on X and/or Y to fit non-matching aspect ratios.
+   - scale uniformly (zoom in to crop tighter, or zoom out — the zoom
+     range matches the independent stretch sliders below, so it can shrink
+     the image below cut-line-covering size to fit it entirely inside the
+     live area if that's what's wanted; per the coverage rule this is
+     allowed, just flagged),
+   - stretch independently on X and/or Y to fit non-matching aspect ratios,
+   - **remove the image from this site** entirely (clearing the
+     assignment) without affecting any other site.
    - Per-site edits are independent even when multiple sites share the same
      source image (i.e. "same image, different crop/zoom per site" is
-     allowed).
+     allowed) — though saving an edit offers to propagate the same
+     position/size to any other sites currently showing that same image,
+     see §8.4.
 7. **Preview** any sheet at any time (thumbnail-per-site composite, with a
    sheet switcher/tabs once there's more than one sheet), and preview an
    individual site full-size.
@@ -194,11 +280,21 @@ orientation-agnostic, just swap W/H).
   that still has assignments should require confirmation.
 
 ### 8.3 Image Assignment
-- Support all three assignment modes described in §7 step 5, freely mixed,
+- Support all assignment modes described in §7 step 5, freely mixed,
   across all sheets in the project.
-- "Apply to all" only fills sites that don't already have an explicit
-  per-site override, unless the user explicitly chooses to overwrite all;
-  it applies to every sheet currently in the project, not just one.
+- **Apply to all** unconditionally overwrites every site in the layout
+  with the selected image, including sites that already have a per-site
+  assignment; it applies to every sheet currently in the project, not
+  just one.
+- **Apply to remainder** fills only sites that don't already have an
+  image assigned, leaving every existing per-site assignment untouched;
+  also applies across every sheet in the project.
+- Assigning one specific image to one specific site is done by
+  **dragging the image's thumbnail directly onto the site** (works on any
+  site, overwriting whatever was there), or by clicking the thumbnail to
+  hold it and then clicking the site — but only if that site is currently
+  *empty*, since clicking an already-filled site opens the per-site
+  editor instead (§8.4) rather than reassigning it.
 - Unassigning/clearing a single site must not affect others.
 - When the count of uploaded-but-unassigned images exceeds the count of
   empty sites across all current sheets, show a non-blocking prompt
@@ -212,8 +308,29 @@ orientation-agnostic, just swap W/H).
 ### 8.4 Image Editing / Fit Controls
 - Per-site transform state: offset (x, y), scale X, scale Y, and (nice-to-have,
   not required v1) rotation.
+- **Presentation: modal dialog.** Clicking the image within an
+  already-assigned site opens a modal isolated to just that site,
+  regardless of whether another image is currently held for placement —
+  editing a filled site always takes priority over placement, so there's
+  no need to deselect a held image first. It's a larger view of the
+  site+image than the full-sheet preview affords, so fine
+  repositioning/resizing isn't fighting a tiny thumbnail. The dialog
+  is sized to fit its own content — no internal scrollbar for the normal
+  case (single-site preview + a couple of sliders + a toggle) — and its
+  action buttons (Remove from this site, Reset, Cancel, Done) stay on one
+  row rather than wrapping.
 - Editor overlays the two guide circles (live area + cut line) at their
   true relative proportions for the selected button size.
+- **Remove from site.** The editor provides a way to clear the image from
+  that site entirely (equivalent to unassigning it, §8.3), without
+  affecting any other site.
+- **Cross-site propagation prompt.** Per-site edits are independent by
+  default, even when multiple sites share the same source image. On
+  saving an edit, if that image is also used on other sites, prompt the
+  user to apply the same position/size to those other sites too;
+  declining leaves them exactly as they were. This is the only way edits
+  spread between sites — it's always an explicit, opt-in choice per save,
+  never automatic.
 - **Coverage rule: warning, not a hard constraint.** The user can freely
   scale/position an image so it no longer fully covers the outer cut-line
   circle. When that happens, the editor shows a clear visual warning
@@ -223,6 +340,17 @@ orientation-agnostic, just swap W/H).
   warnings present — it's the user's call.
 - Independent X/Y scale explicitly supports "stretch/shrink to fit" as
   requested, in addition to plain uniform resize/crop.
+- **Zoom range matches the stretch sliders' range, including below 1×.**
+  There is no separate "can't zoom out past cover-fit" floor on the
+  uniform zoom control — consistent with the coverage rule above being a
+  warning, not a hard constraint, the same range (roughly 0.3×-4×, tuned
+  to be generous without being unusable) applies to zoom and to each
+  independent X/Y stretch slider, so a user can deliberately shrink an
+  image to fit fully inside the live area circle with the same control
+  they'd use to crop in tighter.
+- **Controls update live while dragging or using the keyboard**, not just
+  on release/commit — the image repositions/resizes continuously as a
+  slider is moved, matching the live-drag pan behavior.
 - Image-quality assist (should-have): compute effective print resolution
   (px ÷ printed-size-in-inches) for the current crop and warn if it falls
   below a print-quality threshold (e.g. below 150 PPI warn, below 300 PPI
@@ -255,6 +383,31 @@ orientation-agnostic, just swap W/H).
   the warning is an editor-time aid, not an export blocker.
 - Filename should be descriptive/date-stamped by default (exact convention
   TBD, not user-facing-critical).
+
+### 8.7 Screen Layout
+- The main working view is a **two-column layout**:
+  - **Left column** — everything that drives what goes into the sheet:
+    button size / page size selectors (§8.1), site padding / sheet margin
+    controls (§8.2), the image dropzone and file picker (§8.3), and the
+    uploaded-image thumbnail list with the Apply to all / Apply to
+    remainder actions (§7 step 5, §8.3).
+  - **Right column** — the sheet/site preview (§8.5): the live canvas grid
+    of sites, updating immediately as anything in the left column changes.
+- Keeping controls and images on one side and the sheet they produce on
+  the other means a change never requires scrolling away from the preview
+  to see its effect, or away from the controls to make the next change.
+- **Responsive: must degrade to a single column as the viewport narrows.**
+  Below **900px** viewport width, the layout switches from side-by-side
+  to one vertical column — left-column content (selectors, controls,
+  dropzone, image list) first, then the sheet preview below it — since
+  there isn't room for genuine side-by-side use at tablet/phone widths.
+  The sheet canvas itself scales down to fit the available width in
+  either layout (it's never allowed to force horizontal page scrolling).
+  900px is a starting point tuned to this app's content, not a fixed
+  design-system value — free to adjust later without any structural
+  change, since it's a single breakpoint on one container.
+- Once multi-sheet support (§8.2) and the sheet switcher (§8.5) exist,
+  they live at the top of the right column, above the canvas.
 
 ## 9. Data Model (conceptual)
 
@@ -339,6 +492,17 @@ only ever one active project since there are no accounts. On load, image
 bytes are decoded back into bitmaps before the UI renders. `localStorage` is
 not used for this — image bytes are too large for it.
 
+**Implementation note (current, pre-persistence):** the types above are the
+target shape; what's actually built today is a subset, in separate signal-based
+Angular services rather than one `Project` object. `LayoutStateService` holds
+`LayoutConfig`/`Layout`; `ImagesStateService` holds `ImageAsset[]` (using only
+`ImageBitmap`, plus an extra UI-only `objectUrl` field for cheap `<img>`
+thumbnails — not in the model above); `AssignmentStateService` holds a flat
+`Map<siteIndex, { imageId, transform }>` for a single implicit sheet (no
+`Sheet`/multi-sheet wrapper, no `hasCoverageGap` yet, since neither multi-sheet
+nor the coverage-gap warning are built — see §0). None of this is persisted
+yet; a refresh currently loses everything.
+
 ## 10. Layout / Packing Algorithm (v1 — grid)
 
 Given cut-line diameter `D`, site padding `P`, sheet margin `M`, and usable
@@ -394,16 +558,52 @@ Total sites per sheet = `cols * rows`.
    safety, without disturbing the resources or bringing the shared
    bucket/OAI/cert/IAM user/DNS records into that stack too. See §15.7 and
    `cloudformation/README.md`.
-8. **Component library — Angular Material.** Used for standard UI chrome
-   (pickers, inputs, tabs, dialogs, snackbars) so v1 UI work isn't spent
+8. **Component library — Angular Material.** Installed (`ng add
+   @angular/material`, Material 3 theme). Used for standard UI chrome
+   (pickers, inputs, dialogs, snackbars) so v1 UI work isn't spent
    reinventing basic controls; the custom circular-guide editor and
    canvas-based previews remain hand-rolled since Material doesn't cover
-   that surface. See §13. Not yet installed — first `ng add` when product
-   UI work begins.
+   that surface. See §13.
+9. **Site assignment interaction — drag-and-drop onto a site, plus
+   click-to-hold/click-to-place as a fallback for empty sites only.** A
+   user can drag an uploaded thumbnail directly onto a site — empty or
+   already-filled — to assign it there, overwriting whatever was there
+   before. Click-to-hold/click-to-place (click a thumbnail to "hold" it,
+   then click a site) is the fallback for when dragging is awkward (e.g.
+   touch), but only places onto an *empty* site: clicking an
+   already-filled site always opens the per-site editor instead (see
+   #10), regardless of whether an image is currently held — the user
+   doesn't need to deselect first. To overwrite a filled site without
+   opening the editor, drag onto it. See §7 step 5, §8.3.
+10. **Per-site image editing — modal dialog, opened by clicking a filled
+    site's image regardless of held-image state, with removal and a
+    cross-site propagate prompt.** Clicking the image within an
+    already-assigned site opens a modal editor showing a larger, isolated
+    view of just that site — this takes priority over any image currently
+    held for placement, so a held selection is never accidentally dumped
+    onto a site the user meant to edit. The editor offers: drag-to-pan, a
+    uniform zoom slider, an optional independent-stretch mode for X/Y
+    scale, and a way to remove the image from that site entirely. On
+    save, if the edited image is also used on other sites, the user is
+    prompted to apply the same position/size to those other sites too;
+    declining leaves them untouched. See §7 step 6, §8.4.
+11. **No zoom-out floor at cover-fit — revised.** An earlier pass floored
+    the uniform zoom slider at 1× (couldn't zoom out past covering the
+    cut line) while the independent stretch sliders could already go
+    below 1×. That inconsistency is gone: zoom and stretch now share one
+    range (≈0.3×-4×), so zooming out can intentionally shrink an image to
+    fit inside the live area — consistent with the coverage rule (§8.4)
+    already being a warning, not a hard constraint, a hard floor on zoom
+    alone didn't fit that philosophy. See §7 step 6, §8.4.
+12. **Slider-driven edits apply live, not on commit.** The zoom/stretch
+    sliders are bound so the preview updates continuously as the slider
+    moves (mouse drag or keyboard), not only when the drag ends or the
+    control loses focus — matches the already-live pan-by-drag behavior,
+    so all three controls feel consistent. See §8.4.
 
 ### Remaining
 
-7. **Print scale correctness across browsers/printers.** Browsers'
+13. **Print scale correctness across browsers/printers.** Browsers'
    PDF-to-physical-paper handling is generally reliable via `pdf-lib`
    generating a PDF with correctly-sized `MediaBox`, but we should
    explicitly test actual printed output against a ruler before calling
@@ -428,14 +628,13 @@ Total sites per sheet = `cols * rows`.
 image handling, layout computation, live preview rendering, and PDF
 generation all happen in the browser:
 
-- Component library: **Angular Material**, for the standard chrome around
-  the custom canvas work — preset pickers, sliders/inputs for
-  padding/margin, buttons, tabs (sheet switcher), file upload affordance,
-  dialogs (e.g. remove-sheet confirmation), snackbars (e.g. the
-  add-a-sheet suggestion in §8.3). The circular-guide editor, site grid,
-  and full-sheet preview stay hand-rolled `<canvas>` — Material has
-  nothing to offer there. Not yet installed (`ng add @angular/material`
-  is the next step when UI work starts).
+- Component library: **Angular Material** (installed), for the standard
+  chrome around the custom canvas work — preset pickers, inputs for
+  padding/margin, buttons, sliders (per-site zoom/stretch), dialogs (the
+  per-site editor, confirm prompts), snackbars (upload-rejection
+  feedback). The circular-guide editor, site grid, and full-sheet preview
+  stay hand-rolled `<canvas>` — Material has nothing to offer there.
+  Tabs (sheet switcher) not yet used, pending multi-sheet support (§0).
 - Rendering: HTML5 `<canvas>` per site editor and for the full-sheet
   preview composite.
 - PDF generation: a client-side PDF library capable of precise physical

@@ -12,6 +12,18 @@ export class ImagesStateService {
   private readonly _images = signal<ImageAsset[]>([]);
   readonly images = this._images.asReadonly();
 
+  /** The image currently "held" for assignment onto sites — set by clicking a thumbnail. */
+  private readonly _selectedImageId = signal<string | null>(null);
+  readonly selectedImageId = this._selectedImageId.asReadonly();
+
+  selectImage(id: string): void {
+    this._selectedImageId.update((current) => (current === id ? null : id));
+  }
+
+  clearSelection(): void {
+    this._selectedImageId.set(null);
+  }
+
   async addFiles(files: Iterable<File>): Promise<AddFilesResult> {
     const added: ImageAsset[] = [];
     const skipped: string[] = [];
@@ -48,5 +60,8 @@ export class ImagesStateService {
     URL.revokeObjectURL(image.objectUrl);
     image.bitmap.close();
     this._images.update((current) => current.filter((img) => img.id !== id));
+    if (this._selectedImageId() === id) {
+      this.clearSelection();
+    }
   }
 }

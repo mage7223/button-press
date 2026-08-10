@@ -3,9 +3,15 @@
     <h1>{{ title() }}</h1>
   </header>
 
-  <app-layout-controls />
-  <app-image-upload />
-  <app-sheet-preview />
+  <div class="workspace">
+    <section class="controls-column">
+      <app-layout-controls />
+      <app-image-upload />
+    </section>
+    <section class="preview-column">
+      <app-sheet-preview />
+    </section>
+  </div>
 </main>
 
 <router-outlet />

@@ -14,14 +14,26 @@
 @if (state.images().length > 0) {
   <ul class="thumbnails">
     @for (image of state.images(); track image.id) {
-      <li class="thumbnail">
+      <li
+        class="thumbnail"
+        [class.selected]="state.selectedImageId() === image.id"
+        role="button"
+        tabindex="0"
+        draggable="true"
+        [attr.aria-pressed]="state.selectedImageId() === image.id"
+        [attr.aria-label]="'Select ' + image.fileName + ' for assignment, or drag it onto a site'"
+        (click)="selectImage(image.id)"
+        (keydown.enter)="selectImage(image.id)"
+        (keydown.space)="$event.preventDefault(); selectImage(image.id)"
+        (dragstart)="onThumbnailDragStart($event, image.id)"
+      >
         <img [src]="image.objectUrl" [alt]="image.fileName" />
         <button
           type="button"
           mat-icon-button
           class="remove"
           [attr.aria-label]="'Remove ' + image.fileName"
-          (click)="removeImage(image.id)"
+          (click)="$event.stopPropagation(); removeImage(image.id)"
         >
           <mat-icon>close</mat-icon>
         </button>
@@ -29,4 +41,28 @@
       </li>
     }
   </ul>
+
+  <div class="assign-actions">
+    @if (selectedFileName(); as name) {
+      <span class="hint">Selected: {{ name }} — click an empty site to assign it there (drag onto a filled one to replace it), or:</span>
+    } @else {
+      <span class="hint">Drag an image onto a site to assign it there, or select one above to:</span>
+    }
+    <button
+      mat-stroked-button
+      type="button"
+      [disabled]="!state.selectedImageId() || assignmentState.totalSites() === 0"
+      (click)="applyToAll()"
+    >
+      Apply to all
+    </button>
+    <button
+      mat-stroked-button
+      type="button"
+      [disabled]="!state.selectedImageId() || assignmentState.totalSites() === 0"
+      (click)="applyToRemainder()"
+    >
+      Apply to remainder
+    </button>
+  </div>
 }

@@ -41,6 +41,11 @@
 .thumbnail {
   position: relative;
   width: 7rem;
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
 
   img {
     width: 7rem;
@@ -49,6 +54,13 @@
     border-radius: 4px;
     display: block;
     border: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  &.selected img {
+    border-color: var(--mat-sys-primary);
+    border-width: 3px;
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 1px;
   }
 
   .remove {
@@ -76,5 +88,18 @@
     overflow: hidden;
     text-overflow: ellipsis;
     margin-top: 0.25rem;
+  }
+}
+
+.assign-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+
+  .hint {
+    font-size: 0.85rem;
+    color: var(--mat-sys-on-surface-variant);
   }
 }

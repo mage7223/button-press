@@ -1,8 +1,9 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { SUPPORTED_IMAGE_TYPES } from '../models/image.model';
+import { AssignmentStateService } from '../assignment/assignment-state.service';
+import { IMAGE_DRAG_MIME_TYPE, SUPPORTED_IMAGE_TYPES } from '../models/image.model';
 import { ImagesStateService } from './images-state.service';
 
 @Component({
@@ -13,10 +14,15 @@ import { ImagesStateService } from './images-state.service';
 })
 export class ImageUploadComponent {
   protected readonly state = inject(ImagesStateService);
+  protected readonly assignmentState = inject(AssignmentStateService);
   private readonly snackBar = inject(MatSnackBar);
 
   protected readonly acceptTypes = SUPPORTED_IMAGE_TYPES.join(',');
   protected readonly isDragOver = signal(false);
+
+  protected readonly selectedFileName = computed(
+    () => this.state.images().find((img) => img.id === this.state.selectedImageId())?.fileName ?? null,
+  );
 
   protected onDragOver(event: DragEvent): void {
     event.preventDefault();
@@ -51,6 +57,31 @@ export class ImageUploadComponent {
 
   protected removeImage(id: string): void {
     this.state.removeImage(id);
+  }
+
+  protected selectImage(id: string): void {
+    this.state.selectImage(id);
+  }
+
+  protected onThumbnailDragStart(event: DragEvent, id: string): void {
+    event.dataTransfer?.setData(IMAGE_DRAG_MIME_TYPE, id);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'copy';
+    }
+  }
+
+  protected applyToAll(): void {
+    const id = this.state.selectedImageId();
+    if (id) {
+      this.assignmentState.applyToAll(id);
+    }
+  }
+
+  protected applyToRemainder(): void {
+    const id = this.state.selectedImageId();
+    if (id) {
+      this.assignmentState.applyToRemainder(id);
+    }
   }
 
   private async addFiles(files: Iterable<File>): Promise<void> {
