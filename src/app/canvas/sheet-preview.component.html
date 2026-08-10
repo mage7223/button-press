@@ -1,10 +1,21 @@
 @if (state.error(); as error) {
   <p class="layout-error" role="alert">{{ error }}</p>
 } @else if (state.layout(); as layout) {
-  <p class="layout-summary">
-    {{ layout.columns * layout.rows }} sites ({{ layout.columns }} × {{ layout.rows }}) —
-    {{ assignmentState.filledCount() }} filled
-  </p>
+  <div class="sheet-toolbar">
+    <p class="layout-summary">
+      {{ layout.columns * layout.rows }} sites ({{ layout.columns }} × {{ layout.rows }}) —
+      {{ assignmentState.filledCount() }} filled
+    </p>
+    <span class="spacer"></span>
+    <button mat-stroked-button type="button" [disabled]="isExporting()" (click)="printPdf()">
+      <mat-icon>print</mat-icon>
+      Print
+    </button>
+    <button mat-flat-button type="button" color="primary" [disabled]="isExporting()" (click)="downloadPdf()">
+      <mat-icon>download</mat-icon>
+      {{ isExporting() ? 'Exporting…' : 'Download PDF' }}
+    </button>
+  </div>
   <canvas
     #canvas
     class="sheet"

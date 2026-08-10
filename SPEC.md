@@ -1,15 +1,15 @@
 # button-press — Product & Technical Spec
 
-Status: **Draft v0.3** — core layout generation, image upload/assignment,
-and per-site image editing are built and browser-verified (§7 steps 1-6);
-multi-sheet support, the coverage-gap warning, PDF export (§8.6), and
+Status: **Draft v0.4** — core layout generation, image upload/assignment,
+per-site image editing, and PDF export are built and browser-verified (§7
+steps 1-6, 8); multi-sheet support, the coverage-gap warning, and
 IndexedDB persistence (§9) are not yet implemented; infrastructure and
 deployment pipeline (§13-§15) built and verified live.
 
 ## 0. Current Status (as of 2026-08-10)
 
-**Application code: core layout + image assignment + per-site editing
-built; multi-sheet, PDF export, and persistence not yet started.**
+**Application code: core layout + image assignment + per-site editing +
+PDF export built; multi-sheet and persistence not yet started.**
 
 Built and verified in a real browser (headless Chrome driven via CDP,
 including pixel-level assertions, not just component tests):
@@ -57,27 +57,48 @@ including pixel-level assertions, not just component tests):
   at 1400px, 901px, 899px, and 390px (phone) to confirm the breakpoint
   lands exactly where specified and nothing overflows horizontally at
   phone width.
+- **PDF export (§8.6).** "Download PDF" and "Print" buttons above the
+  sheet canvas. Client-side generation via `pdf-lib`: the sheet is
+  rasterized to a single high-resolution (300 DPI) image reusing the same
+  per-site clip/transform math as the on-screen canvas (extracted into a
+  shared helper so the two can't drift apart), then embedded to exactly
+  fill a PDF page sized from the paper preset's physical mm dimensions —
+  no separate "scale" step, so correctness follows directly from the page
+  geometry rather than needing to be gotten right twice. The cut-line
+  (outer) circle is drawn as a thin guide on every site, filled or empty;
+  the live-area (inner) circle is never drawn. Filename is descriptive
+  and date-stamped (`button-press-{button}-{paper}-{date}.pdf`).
+  "Download" saves via a generated blob URL; "Print" opens the same PDF
+  in a new tab for the browser's native viewer/print flow. Verified by
+  downloading a real file in a real browser and checking it both
+  structurally (loaded the output with `pdf-lib` in Node and confirmed
+  the page is exactly 612.0×792.0pt — US Letter's true physical size in
+  points, from 215.9mm×279.4mm) and visually (opened it in Chrome's
+  built-in PDF viewer with a mix of filled and empty sites and confirmed
+  every site shows exactly one circle — solid-filled for the two assigned
+  sites, outline-only for the rest — with no inner circle anywhere).
 
 Not yet built:
 
 - **Multi-sheet support (§8.2, §8.3).** The app currently has a single
   implicit sheet; explicit sheet add/remove and the "more unassigned
-  images than empty sites" prompt don't exist yet.
+  images than empty sites" prompt don't exist yet. PDF export is
+  consequently single-page only — the multi-page-one-page-per-sheet
+  requirement (§8.6) can't be exercised until sheets exist.
 - **Coverage-gap warning (§8.4).** The editor allows a transform that
   leaves the cut line uncovered but doesn't flag it visually yet.
 - **Print-resolution/PPI warning (§8.4, should-have).**
 - **Full-sheet/single-site preview polish beyond the working canvas
   (§8.5)** — e.g. a dedicated single-site full-size preview, sheet
   switcher (blocked on multi-sheet).
-- **PDF export (§8.6).** Nothing yet.
 - **IndexedDB persistence (§9).** Nothing yet — a page refresh currently
   loses all state (layout config, uploaded images, assignments).
 
 **Next likely step:** no single obvious next item — remaining v1 work is
-multi-sheet support, the coverage-gap warning, IndexedDB persistence, and
-PDF export. Persistence is probably the highest-value next increment,
-since there's now enough in-progress state (uploads, assignments,
-per-site edits) that losing it on refresh is a real cost.
+multi-sheet support, the coverage-gap warning, and IndexedDB persistence.
+Persistence is probably the highest-value next increment, since there's
+now enough in-progress state (uploads, assignments, per-site edits, and
+now a working export) that losing it on refresh is a real cost.
 
 **CI/CD & hosting: built and verified end-to-end.**
 - `main` → production is live and confirmed working: the `Deploy
@@ -375,14 +396,33 @@ orientation-agnostic, just swap W/H).
   layout — what you see in the full-sheet preview is what prints.
 - **Multi-sheet projects export as a single multi-page PDF**, one page per
   sheet, in sheet order.
-- Empty sites render as blank space by default.
-- Optional toggle: include faint cut-line guide circles in the exported PDF
-  (useful if the user is hand-cutting or manually aligning a die without a
-  jig). Off by default.
+- Empty sites render as blank space (no image), but still show the
+  cut-line circle per the next bullet — an empty site is still a real
+  cutting position.
+- **Cut-line (outer) circle is always visible in the export** — a thin
+  guide line marking exactly where the die cuts, useful for hand-cutting
+  or aligning a die without a jig, present on every site whether or not
+  it has an image assigned. **Live-area (inner) circle is never printed**
+  — it's a design-time composition aid (§8.4's editor guide), not meant
+  to appear on the physical output.
 - Sites with an active coverage-gap warning (§8.4) still export as-is —
   the warning is an editor-time aid, not an export blocker.
 - Filename should be descriptive/date-stamped by default (exact convention
   TBD, not user-facing-critical).
+
+**Implementation note (current):** the sheet is rasterized client-side to
+one 300 DPI PNG (reusing the exact per-site clip/pan/scale math the
+on-screen canvas uses, via a shared helper, so the two can never quietly
+diverge) and embedded via `pdf-lib` to exactly fill a PDF page sized from
+the paper preset's physical mm — the true-scale requirement above falls
+out of matching the page geometry rather than needing separate scale
+math. Filename convention landed on
+`button-press-{button size}-{paper size}-{date}.pdf`. The cut-line/
+live-area visibility rule above is implemented: the cut-line circle is
+stroked (faint, semi-transparent black) on every site after any image is
+drawn, so it reads on top of filled sites too; the live-area circle is
+never drawn. Not yet built: the multi-page-per-sheet behavior (blocked on
+multi-sheet existing at all — see §0).
 
 ### 8.7 Screen Layout
 - The main working view is a **two-column layout**:
@@ -600,10 +640,19 @@ Total sites per sheet = `cols * rows`.
     moves (mouse drag or keyboard), not only when the drag ends or the
     control loses focus — matches the already-live pan-by-drag behavior,
     so all three controls feel consistent. See §8.4.
+13. **PDF export guide circles — cut-line always visible, live-area
+    always invisible, replacing the earlier "off-by-default toggle"
+    plan.** The originally-specced optional toggle to show/hide faint
+    cut-line circles is gone; the cut line is now simply always printed
+    (every site, filled or empty — it's the actual physical cutting
+    position, so it belongs on the page whether or not there's artwork
+    there yet), and the live-area circle is never printed, full stop —
+    it's purely an on-screen composition aid (§8.4), never meant to be
+    physical output. See §8.6.
 
 ### Remaining
 
-13. **Print scale correctness across browsers/printers.** Browsers'
+14. **Print scale correctness across browsers/printers.** Browsers'
    PDF-to-physical-paper handling is generally reliable via `pdf-lib`
    generating a PDF with correctly-sized `MediaBox`, but we should
    explicitly test actual printed output against a ruler before calling
@@ -637,11 +686,14 @@ generation all happen in the browser:
   Tabs (sheet switcher) not yet used, pending multi-sheet support (§0).
 - Rendering: HTML5 `<canvas>` per site editor and for the full-sheet
   preview composite.
-- PDF generation: a client-side PDF library capable of precise physical
-  units and embedding raster images (e.g. `pdf-lib` or `jsPDF`) — pick
-  based on how much control we need over unit precision and image
-  compositing; `pdf-lib` generally gives more direct control over the
-  document's `MediaBox`/unit math.
+- PDF generation: **`pdf-lib`** (installed) — chosen over `jsPDF` for its
+  more direct control over the document's `MediaBox`/unit math, per the
+  original tradeoff noted here. The sheet is rasterized to a PNG client-side
+  (canvas) and embedded via `pdf-lib` to fill a page sized in physical mm;
+  see §8.6's implementation note. Adds meaningfully to bundle size (bumped
+  the initial-bundle budget in `angular.json`, same pattern as when
+  Angular Material was added), which is expected and accepted for a
+  client-only app with no other way to generate a PDF.
 - State management: standard Angular services + signals/RxJS; no need for
   a heavier state library at this scope.
 - No backend, no database. `IndexedDB` for local session persistence

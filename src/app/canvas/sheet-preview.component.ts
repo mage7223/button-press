@@ -1,5 +1,8 @@
 import { Component, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { AssignmentStateService } from '../assignment/assignment-state.service';
 import { SiteEditorDialogComponent, SiteEditorDialogData, SiteEditorResult } from '../assignment/site-editor-dialog.component';
 import { ImagesStateService } from '../images/images-state.service';
@@ -7,14 +10,16 @@ import { IMAGE_DRAG_MIME_TYPE, ImageAsset } from '../models/image.model';
 import { ImageTransform, SiteAssignment } from '../models/assignment.model';
 import { Layout, SitePosition } from '../models/layout.model';
 import { LayoutStateService } from '../layout/layout-state.service';
+import { PdfExportService } from '../pdf/pdf-export.service';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../shared/confirm-dialog.component';
+import { drawClippedSiteImage } from './site-image-render';
 
 /** Pixels per mm at render time — arbitrary for on-screen preview, not export. */
 const PX_PER_MM = 3;
 
 @Component({
   selector: 'app-sheet-preview',
-  imports: [],
+  imports: [MatButtonModule, MatIconModule],
   templateUrl: './sheet-preview.component.html',
   styleUrl: './sheet-preview.component.scss',
 })
@@ -23,8 +28,11 @@ export class SheetPreviewComponent {
   protected readonly assignmentState = inject(AssignmentStateService);
   private readonly imagesState = inject(ImagesStateService);
   private readonly dialog = inject(MatDialog);
+  private readonly pdfExport = inject(PdfExportService);
+  private readonly snackBar = inject(MatSnackBar);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
 
+  protected readonly isExporting = signal(false);
   private readonly dragHoverSiteIndex = signal<number | null>(null);
 
   constructor() {
@@ -83,6 +91,45 @@ export class SheetPreviewComponent {
     const site = this.findSiteAtClientPoint(event.clientX, event.clientY);
     if (site) {
       this.assignmentState.assignImage(site.index, imageId);
+    }
+  }
+
+  protected async downloadPdf(): Promise<void> {
+    const blob = await this.exportPdf();
+    if (!blob) {
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = this.pdfExport.suggestedFileName();
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  protected async printPdf(): Promise<void> {
+    const blob = await this.exportPdf();
+    if (!blob) {
+      return;
+    }
+    // Not revoked here — the new tab needs the URL to stay valid while it loads/prints.
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }
+
+  private async exportPdf(): Promise<Blob | null> {
+    this.isExporting.set(true);
+    try {
+      const blob = await this.pdfExport.generate();
+      if (!blob) {
+        this.snackBar.open('Nothing to export yet.', 'Dismiss', { duration: 4000 });
+      }
+      return blob;
+    } catch {
+      this.snackBar.open('PDF export failed — please try again.', 'Dismiss', { duration: 6000 });
+      return null;
+    } finally {
+      this.isExporting.set(false);
     }
   }
 
@@ -182,7 +229,7 @@ export class SheetPreviewComponent {
       const asset = assignment ? imagesById.get(assignment.imageId) : undefined;
 
       if (asset && assignment) {
-        this.drawSiteImage(ctx, asset, assignment.transform, cx, cy, cutRadiusPx);
+        drawClippedSiteImage(ctx, asset, assignment.transform, cx, cy, cutRadiusPx, PX_PER_MM);
       }
 
       ctx.beginPath();
@@ -206,30 +253,5 @@ export class SheetPreviewComponent {
         ctx.stroke();
       }
     }
-  }
-
-  /** Covers the cut-line circle at transform scale 1, then applies pan/stretch on top (§8.4). */
-  private drawSiteImage(
-    ctx: CanvasRenderingContext2D,
-    asset: ImageAsset,
-    transform: ImageTransform,
-    cx: number,
-    cy: number,
-    cutRadiusPx: number,
-  ): void {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, cutRadiusPx, 0, Math.PI * 2);
-    ctx.clip();
-
-    const targetSize = cutRadiusPx * 2;
-    const baseScale = Math.max(targetSize / asset.bitmap.width, targetSize / asset.bitmap.height);
-    const drawWidth = asset.bitmap.width * baseScale * transform.scaleX;
-    const drawHeight = asset.bitmap.height * baseScale * transform.scaleY;
-    const offsetXPx = transform.offsetXMm * PX_PER_MM;
-    const offsetYPx = transform.offsetYMm * PX_PER_MM;
-    ctx.drawImage(asset.bitmap, cx - drawWidth / 2 + offsetXPx, cy - drawHeight / 2 + offsetYPx, drawWidth, drawHeight);
-
-    ctx.restore();
   }
 }
