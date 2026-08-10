@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  button-press.com CDN — the 2 CloudFront distributions (staging/dev,
+  production) created directly via the AWS CLI on 2026-08-09. This template
+  exists so those already-live resources can be brought under
+  CloudFormation management (via a resource IMPORT, not a fresh create —
+  see README.md in this directory) purely to get rollback/rebuild
+  capability, without owning the shared kjr-static-content bucket, its
+  Origin Access Identity, the ACM certificate, or the Route53 hosted zone —
+  all of those are shared with ~10 other personal sites and stay
+  hand-managed outside this stack. See SPEC.md §15 for the full picture.
+
+Parameters:
+  OriginDomainName:
+    Type: String
+    Default: kjr-static-content.s3.us-east-1.amazonaws.com
+    Description: Existing shared bucket's regional S3 endpoint. Not managed by this stack.
+
+  OriginAccessIdentityId:
+    Type: String
+    Default: E8XZ915T7W6UI
+    Description: Existing shared CloudFront Origin Access Identity, already trusted by the bucket policy. Not managed by this stack.
+
+  AcmCertificateArn:
+    Type: String
+    Default: arn:aws:acm:us-east-1:865771576534:certificate/615b7ba0-4378-4b8f-b9b3-bce705c97104
+    Description: Existing ACM cert (button-press.com + *.button-press.com, us-east-1). Not managed by this stack.
+
+  CachePolicyId:
+    Type: String
+    Default: 658327ea-f89d-4fab-a63d-7e88639e58f6
+    Description: AWS-managed "Managed-CachingOptimized" cache policy (account/region-independent well-known ID).
+
+  ResponseHeadersPolicyId:
+    Type: String
+    Default: 60669652-455b-4ae9-85a4-c4c02393f86c
+    Description: AWS-managed "Managed-SimpleCORS" response headers policy (account/region-independent well-known ID).
+
+Resources:
+  StagingDistribution:
+    Type: AWS::CloudFront::Distribution
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: dev.button-press.com
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        Aliases:
+          - dev.button-press.com
+        Origins:
+          - Id: !Ref OriginDomainName
+            DomainName: !Ref OriginDomainName
+            OriginPath: /sites/button-press.com/dev
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${OriginAccessIdentityId}"
+        DefaultCacheBehavior:
+          TargetOriginId: !Ref OriginDomainName
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          CachePolicyId: !Ref CachePolicyId
+          ResponseHeadersPolicyId: !Ref ResponseHeadersPolicyId
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 10
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 10
+        ViewerCertificate:
+          AcmCertificateArn: !Ref AcmCertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: none
+
+  ProductionDistribution:
+    Type: AWS::CloudFront::Distribution
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: button-press.com
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        Aliases:
+          - button-press.com
+          - www.button-press.com
+        Origins:
+          - Id: !Ref OriginDomainName
+            DomainName: !Ref OriginDomainName
+            OriginPath: /sites/button-press.com/prod
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${OriginAccessIdentityId}"
+        DefaultCacheBehavior:
+          TargetOriginId: !Ref OriginDomainName
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          CachePolicyId: !Ref CachePolicyId
+          ResponseHeadersPolicyId: !Ref ResponseHeadersPolicyId
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 10
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 10
+        ViewerCertificate:
+          AcmCertificateArn: !Ref AcmCertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: none
+
+Outputs:
+  StagingDistributionId:
+    Value: !Ref StagingDistribution
+  StagingDistributionDomainName:
+    Value: !GetAtt StagingDistribution.DomainName
+  ProductionDistributionId:
+    Value: !Ref ProductionDistribution
+  ProductionDistributionDomainName:
+    Value: !GetAtt ProductionDistribution.DomainName

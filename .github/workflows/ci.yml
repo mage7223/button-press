@@ -1,0 +1,14 @@
+name: CI
+
+# Required status check for PRs into develop/main. Direct pushes to
+# develop/main aren't covered here — deploy-staging.yml and
+# deploy-production.yml each run the same build-test job themselves
+# before deploying, so there's no need to duplicate that run here too.
+# See SPEC.md §15.2.
+
+on:
+  pull_request:
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/build-test.yml

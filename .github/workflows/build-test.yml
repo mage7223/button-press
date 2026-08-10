@@ -1,0 +1,42 @@
+name: Build & test
+
+# Reusable workflow: lint, unit test, and production-build the Angular
+# app. Called by ci.yml (as the required PR check) and by each
+# deploy-*.yml (to verify + produce the build artifact before deploying).
+# See SPEC.md §15.2.
+
+on:
+  workflow_call:
+    outputs:
+      artifact-name:
+        description: Name of the uploaded dist/ artifact, for the caller to download.
+        value: ${{ jobs.build-and-test.outputs.artifact-name }}
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: site-dist
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm test
+
+      # `ng build` type-checks the whole app as part of compilation, so
+      # there's no separate typecheck step.
+      - run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-dist
+          path: dist/button-press/browser
+          retention-days: 1

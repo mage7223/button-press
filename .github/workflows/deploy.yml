@@ -1,0 +1,75 @@
+name: Deploy
+
+# Reusable workflow: build+test, then sync the build to the given
+# environment's S3 bucket and invalidate its CloudFront distribution.
+# Called by deploy-staging.yml and deploy-production.yml, each pinning
+# `environment` to the matching GitHub Environment (and therefore its
+# scoped secrets/variables). See SPEC.md §15.2-§15.5.
+#
+# AWS resources (S3 prefix, CloudFront distribution, DNS) are provisioned
+# by hand, not via IaC — this project shares the kjr-static-content bucket
+# with several other personal sites, each hand-configured the same way.
+#
+# Required GitHub Environment configuration (already set for staging/production):
+#   secrets:
+#     AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY  — the shared static-deploy-user credential
+#   variables:
+#     AWS_REGION                  = us-east-1
+#     S3_BUCKET_NAME               = kjr-static-content
+#     S3_KEY_PREFIX                = sites/button-press.com/dev (staging) or /prod (production)
+#     CLOUDFRONT_DISTRIBUTION_ID   = this environment's distribution ID
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-test.yml
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: site-dist
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      # Content-hashed assets (main-*.js, styles-*.css, ...) are immutable
+      # and never need invalidating, so they get a long, cacheable
+      # max-age. index.html and favicon.ico are NOT hashed and must be
+      # revalidated on every deploy — synced separately below with
+      # no-cache, then explicitly invalidated. If future build output adds
+      # other unhashed root files, add them to both --exclude lists and
+      # to the invalidation paths. See SPEC.md §15.4-§15.5.
+      - name: Sync hashed assets (long cache)
+        run: |
+          aws s3 sync site-dist "s3://${{ vars.S3_BUCKET_NAME }}/${{ vars.S3_KEY_PREFIX }}" \
+            --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html" \
+            --exclude "favicon.ico"
+
+      - name: Upload unhashed root files (no-cache)
+        run: |
+          aws s3 cp site-dist/index.html "s3://${{ vars.S3_BUCKET_NAME }}/${{ vars.S3_KEY_PREFIX }}/index.html" \
+            --cache-control "no-cache"
+          aws s3 cp site-dist/favicon.ico "s3://${{ vars.S3_BUCKET_NAME }}/${{ vars.S3_KEY_PREFIX }}/favicon.ico" \
+            --cache-control "no-cache"
+
+      - name: Invalidate CloudFront (unhashed paths only)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/index.html" "/favicon.ico"
