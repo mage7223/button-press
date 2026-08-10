@@ -1,6 +1,11 @@
-<main class="placeholder">
-  <h1>{{ title() }}</h1>
-  <p>Button size and paper size selection coming soon.</p>
+<main class="app-shell">
+  <header>
+    <h1>{{ title() }}</h1>
+  </header>
+
+  <app-layout-controls />
+  <app-image-upload />
+  <app-sheet-preview />
 </main>
 
 <router-outlet />

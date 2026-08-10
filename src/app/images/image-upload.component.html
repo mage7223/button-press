@@ -1,0 +1,32 @@
+<label
+  class="dropzone"
+  [class.drag-over]="isDragOver()"
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave()"
+  (drop)="onDrop($event)"
+>
+  <mat-icon>cloud_upload</mat-icon>
+  <span>Drag &amp; drop images here, or click to choose files</span>
+  <span class="hint">JPEG, PNG, WebP — multiple files at once</span>
+  <input type="file" [accept]="acceptTypes" multiple hidden (change)="onFileInputChange($event)" />
+</label>
+
+@if (state.images().length > 0) {
+  <ul class="thumbnails">
+    @for (image of state.images(); track image.id) {
+      <li class="thumbnail">
+        <img [src]="image.objectUrl" [alt]="image.fileName" />
+        <button
+          type="button"
+          mat-icon-button
+          class="remove"
+          [attr.aria-label]="'Remove ' + image.fileName"
+          (click)="removeImage(image.id)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+        <span class="filename">{{ image.fileName }}</span>
+      </li>
+    }
+  </ul>
+}

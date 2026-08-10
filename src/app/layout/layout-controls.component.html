@@ -1,0 +1,49 @@
+<div class="controls">
+  <mat-form-field appearance="outline">
+    <mat-label>Button size</mat-label>
+    <mat-select
+      [value]="state.buttonSize()"
+      (selectionChange)="onButtonSizeChange($event.value)"
+    >
+      @for (preset of state.buttonSizePresets; track preset.id) {
+        <mat-option [value]="preset">{{ preset.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Paper size</mat-label>
+    <mat-select
+      [value]="state.pageSize()"
+      (selectionChange)="onPageSizeChange($event.value)"
+    >
+      @for (preset of state.pageSizePresets; track preset.id) {
+        <mat-option [value]="preset">{{ preset.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Site padding (mm)</mat-label>
+    <input
+      matInput
+      type="number"
+      min="0"
+      step="0.5"
+      [ngModel]="state.sitePaddingMm()"
+      (ngModelChange)="onSitePaddingChange($event)"
+    />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Sheet margin (mm)</mat-label>
+    <input
+      matInput
+      type="number"
+      min="0"
+      step="0.5"
+      [ngModel]="state.sheetMarginMm()"
+      (ngModelChange)="onSheetMarginChange($event)"
+    />
+  </mat-form-field>
+</div>

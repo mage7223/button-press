@@ -1,6 +1,34 @@
 # button-press — Product & Technical Spec
 
-Status: **Draft v0.1**
+Status: **Draft v0.2** — product design (§1-§12) not yet implemented;
+infrastructure and deployment pipeline (§13-§15) built and verified live.
+
+## 0. Current Status (as of 2026-08-09)
+
+**Application code:** scaffold only. The Angular workspace (§13) builds,
+lints, and tests clean, but the UI is still the placeholder screen from
+scaffolding (`src/app/app.html`) — none of the actual product functionality
+in §7-§10 (button/paper size selection, layout generation, image upload and
+per-site editing, preview, PDF export) has been built yet.
+
+**CI/CD & hosting: built and verified end-to-end.**
+- `main` → production is live and confirmed working: the `Deploy
+  production` GitHub Actions run succeeded (build → lint → test → `aws s3
+  sync` → CloudFront invalidation), and https://button-press.com/ serves
+  the current placeholder app (verified both by `curl` — HTTP 200 — and by
+  the user loading the page directly).
+- `develop` → staging is provisioned (CloudFront distribution
+  `E30NVLWVF1DEWB`, DNS record `dev.button-press.com`) but **not yet
+  deployed to** — no `develop` branch exists yet, so `dev.button-press.com`
+  currently 403s. Nothing broken here, just not exercised yet; see §15.1.
+- The 2 CloudFront distributions are under CloudFormation management
+  (`button-press-cdn` stack) for rollback safety; the shared S3 bucket,
+  Origin Access Identity, ACM cert, IAM deploy user, and Route53 records
+  remain intentionally hand-managed outside any IaC — see §15.7-§15.8.
+
+**Next likely step:** start implementing the actual product UI (§7 user
+flow), starting with button-size/page-size selection and layout generation
+(§8.1-§8.2), since everything below it currently has nothing to render into.
 
 ## 1. Overview
 
@@ -366,6 +394,12 @@ Total sites per sheet = `cols * rows`.
    safety, without disturbing the resources or bringing the shared
    bucket/OAI/cert/IAM user/DNS records into that stack too. See §15.7 and
    `cloudformation/README.md`.
+8. **Component library — Angular Material.** Used for standard UI chrome
+   (pickers, inputs, tabs, dialogs, snackbars) so v1 UI work isn't spent
+   reinventing basic controls; the custom circular-guide editor and
+   canvas-based previews remain hand-rolled since Material doesn't cover
+   that surface. See §13. Not yet installed — first `ng add` when product
+   UI work begins.
 
 ### Remaining
 
@@ -394,6 +428,14 @@ Total sites per sheet = `cols * rows`.
 image handling, layout computation, live preview rendering, and PDF
 generation all happen in the browser:
 
+- Component library: **Angular Material**, for the standard chrome around
+  the custom canvas work — preset pickers, sliders/inputs for
+  padding/margin, buttons, tabs (sheet switcher), file upload affordance,
+  dialogs (e.g. remove-sheet confirmation), snackbars (e.g. the
+  add-a-sheet suggestion in §8.3). The circular-guide editor, site grid,
+  and full-sheet preview stay hand-rolled `<canvas>` — Material has
+  nothing to offer there. Not yet installed (`ng add @angular/material`
+  is the next step when UI work starts).
 - Rendering: HTML5 `<canvas>` per site editor and for the full-sheet
   preview composite.
 - PDF generation: a client-side PDF library capable of precise physical
