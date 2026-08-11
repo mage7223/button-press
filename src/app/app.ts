@@ -11,5 +11,5 @@ import { ImageUploadComponent } from './images/image-upload.component';
   styleUrl: './app.scss',
 })
 export class App {
-  protected readonly title = signal('button-press');
+  protected readonly title = signal('Tampa HackerSpace Button Press formatinator');
 }
