@@ -198,7 +198,7 @@ die-cut, and press.
 |---|---|---|
 | 1" | 25mm (1.00") | 35mm (1.38") |
 | 1.25" | 32mm (1.25") | 44mm (1.73") |
-| 1.5" (default) | 38mm (1.50") | 47mm (1.85") |
+| 1.5" | 38mm (1.50") | 47mm (1.85") |
 | 2.25" | 58mm (2.25") | 70mm (2.76") |
 
 These are seed data, not hardcoded constants — see §9 data model. Adding a
@@ -213,6 +213,7 @@ default remains the first page preset (US Letter, §6).
 | US Letter | 8.5" × 11" (215.9mm × 279.4mm) |
 | A4 | 210mm × 297mm |
 | US Legal | 8.5" × 14" (215.9mm × 355.6mm) |
+| Stillwell | 46" × 100ft (labeled only — actual preset data is 46" × 46" / 1168.4mm × 1168.4mm; a true 46"×1200" single PDF page/canvas would exceed browser canvas limits and PDF page-size limits) |
 
 Orientation: portrait for v1 (landscape as a later toggle — packing math is
 orientation-agnostic, just swap W/H).
