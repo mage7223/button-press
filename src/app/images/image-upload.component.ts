@@ -41,6 +41,18 @@ export class ImageUploadComponent {
     const files = event.dataTransfer?.files.length ? Array.from(event.dataTransfer.files) : [];
     if (files.length) {
       this.addFiles(files);
+      return;
+    }
+    // No local File (e.g. Firefox/Safari dragging an <img> in from another page/tab
+    // doesn't populate dataTransfer.files the way Chromium does) — fall back to the
+    // dragged URL, still snapshotted synchronously here before the async fetch.
+    const uriList = event.dataTransfer?.getData('text/uri-list') ?? '';
+    const url = uriList
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => line && !line.startsWith('#'));
+    if (url) {
+      this.addFromUrl(url);
     }
   }
 
@@ -82,6 +94,40 @@ export class ImageUploadComponent {
     if (id) {
       this.assignmentState.applyToRemainder(id);
     }
+  }
+
+  private async addFromUrl(url: string): Promise<void> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const file = new File([blob], this.fileNameFromUrl(url), { type: blob.type });
+      await this.addFiles([file]);
+    } catch {
+      // Most commonly a cross-origin fetch blocked by the source site's CORS policy —
+      // there's no way to distinguish that from a network error at this API surface,
+      // so the message stays generic.
+      this.snackBar.open(
+        "Couldn't load that image — the source site may not allow cross-origin image access.",
+        'Dismiss',
+        { duration: 6000 },
+      );
+    }
+  }
+
+  private fileNameFromUrl(url: string): string {
+    try {
+      const pathname = new URL(url).pathname;
+      const base = decodeURIComponent(pathname.substring(pathname.lastIndexOf('/') + 1));
+      if (base) {
+        return base;
+      }
+    } catch {
+      // Fall through to the generic name below.
+    }
+    return 'dropped-image';
   }
 
   private async addFiles(files: Iterable<File>): Promise<void> {

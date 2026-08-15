@@ -5,6 +5,7 @@ import { ButtonSizePreset, PageSizePreset } from '../models/layout.model';
 export const BUTTON_SIZE_PRESETS: ButtonSizePreset[] = [
   { id: '1in', label: '1"', liveAreaDiameterMm: 25, cutLineDiameterMm: 35 },
   { id: '1.25in', label: '1.25"', liveAreaDiameterMm: 32, cutLineDiameterMm: 44 },
+  { id: '1.5in', label: '1.5"', liveAreaDiameterMm: 38, cutLineDiameterMm: 47 },
   { id: '2.25in', label: '2.25"', liveAreaDiameterMm: 58, cutLineDiameterMm: 70 },
 ];
 

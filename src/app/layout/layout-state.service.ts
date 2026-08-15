@@ -9,7 +9,9 @@ export class LayoutStateService {
   readonly buttonSizePresets = BUTTON_SIZE_PRESETS;
   readonly pageSizePresets = PAGE_SIZE_PRESETS;
 
-  readonly buttonSize = signal<ButtonSizePreset>(BUTTON_SIZE_PRESETS[0]);
+  readonly buttonSize = signal<ButtonSizePreset>(
+    BUTTON_SIZE_PRESETS.find((preset) => preset.id === '1.5in') ?? BUTTON_SIZE_PRESETS[0],
+  );
   readonly pageSize = signal<PageSizePreset>(PAGE_SIZE_PRESETS[0]);
   readonly sitePaddingMm = signal(DEFAULT_SITE_PADDING_MM);
   readonly sheetMarginMm = signal(DEFAULT_SHEET_MARGIN_MM);

@@ -198,10 +198,13 @@ die-cut, and press.
 |---|---|---|
 | 1" | 25mm (1.00") | 35mm (1.38") |
 | 1.25" | 32mm (1.25") | 44mm (1.73") |
+| 1.5" (default) | 38mm (1.50") | 47mm (1.85") |
 | 2.25" | 58mm (2.25") | 70mm (2.76") |
 
 These are seed data, not hardcoded constants — see §9 data model. Adding a
 new button size later should require no code changes, just a new entry.
+**1.5" is the default button size selected on load** (§8.1); the paper size
+default remains the first page preset (US Letter, §6).
 
 ## 6. Page Size Presets
 
@@ -272,6 +275,8 @@ orientation-agnostic, just swap W/H).
 
 ### 8.1 Button & Page Selection
 - Preset pickers for button size and page size (§5, §6).
+- **Default selection on load: 1.5" button size**, US Letter page size (the
+  first entries in their respective preset lists otherwise, §5/§6).
 - Selecting either recomputes the layout immediately (§8.2).
 - Changing button/page size after images are assigned should preserve
   assignments where possible by site index, and simply drop/leave-empty any
@@ -325,6 +330,18 @@ orientation-agnostic, just swap W/H).
   Transparent regions are composited onto a solid backing color (default
   white, user-selectable) at export time, since the final physical medium
   has no transparency.
+- **Dragging an image in from another browser tab/page (not just local
+  files) is supported, best-effort.** In Chromium browsers, dragging an
+  `<img>` from another site onto the dropzone already yields a real
+  downloaded file via `dataTransfer.files`, so it's indistinguishable from
+  a local file drop. On browsers that don't populate `dataTransfer.files`
+  for that case (e.g. Firefox, Safari), the dropzone falls back to reading
+  the dragged `text/uri-list` URL and fetching the image itself. This fetch
+  is subject to the source site's CORS policy — it fails (with a distinct
+  "couldn't load that image" snackbar, separate from the unsupported-file-
+  type message) on sites that don't allow cross-origin image access, which
+  is common. There is no way to reliably detect *in advance* whether a given
+  source URL will allow this.
 
 ### 8.4 Image Editing / Fit Controls
 - Per-site transform state: offset (x, y), scale X, scale Y, and (nice-to-have,
