@@ -77,6 +77,8 @@ including pixel-level assertions, not just component tests):
   built-in PDF viewer with a mix of filled and empty sites and confirmed
   every site shows exactly one circle — solid-filled for the two assigned
   sites, outline-only for the rest — with no inner circle anywhere).
+- **Branding (§8.8).** Tampa Hackerspace logo (SVG) in the header,
+  upper-left, clipped to a circle.
 
 Not yet built:
 
@@ -465,6 +467,12 @@ multi-sheet existing at all — see §0).
   change, since it's a single breakpoint on one container.
 - Once multi-sheet support (§8.2) and the sheet switcher (§8.5) exist,
   they live at the top of the right column, above the canvas.
+
+### 8.8 Branding
+- The header shows the Tampa Hackerspace logo (SVG, served from
+  `public/logo.svg`) at the upper-left, immediately to the left of the
+  page title, clipped to a circle via `border-radius: 50%`.
+- Source: `https://tampahackerspace.com/wp-content/uploads/2025/08/Logo-Vector-color.svg`.
 
 ## 9. Data Model (conceptual)
 
