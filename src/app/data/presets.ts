@@ -13,6 +13,10 @@ export const PAGE_SIZE_PRESETS: PageSizePreset[] = [
   { id: 'letter', label: 'US Letter', widthMm: 215.9, heightMm: 279.4 },
   { id: 'a4', label: 'A4', widthMm: 210, heightMm: 297 },
   { id: 'legal', label: 'US Legal', widthMm: 215.9, heightMm: 355.6 },
+  // Actual dims are 46"x46" (not the full 100ft roll) — a single-page PDF/canvas at true
+  // 46"x1200" would exceed browser canvas limits and PDF page-size limits. Label still
+  // advertises the real roll length; see conversation with Kevin 2026-08-11.
+  { id: 'stillwell', label: 'Stillwell (46" x 100ft)', widthMm: 1168.4, heightMm: 1168.4 },
 ];
 
 export const DEFAULT_SITE_PADDING_MM = 5;
